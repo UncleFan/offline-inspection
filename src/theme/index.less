@@ -1,0 +1,107 @@
+@gray: #333333;
+@lightgray: #666666;
+@blue: #2475FB;
+@orange: #FF9200;
+@backColor: #F7FAFF;
+@tiny: 12px;
+@small: 14px;
+@normal: 16px;
+@large: 18px;
+
+p {
+    margin: 0;
+}
+
+.gray {
+    color: @gray;
+}
+
+.lightgray {
+    color: @lightgray;
+}
+
+.blue {
+    color: @blue;
+}
+
+.orage {
+    color: @orange;
+}
+
+.font-tiny {
+    font-size: @tiny;
+}
+
+.font-small {
+    font-size: @small;
+}
+
+.font-normal {
+    font-size: @normal;
+}
+
+.font-large {
+    font-size: @large;
+}
+
+.bold {
+    font-weight: bold;
+}
+
+.flex-horizon-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: row;
+}
+
+.flex-horizon-left {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-direction: row;
+}
+
+.flex-horizon-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-direction: row;
+}
+
+.flex-horizon-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: row;
+}
+
+.flex-vertical-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.relative {
+    position: relative;
+}
+
+.absolute {
+    position: absolute;
+}
+
+.fit {
+    width: 100%;
+    height: 100%;
+}
+
+.rect {
+    width: 3px;
+    height: 14px;
+    background-color: @blue;
+    display: inline-block;
+    margin-right: 8px;
+    position: relative;
+    top: 2px;
+}
