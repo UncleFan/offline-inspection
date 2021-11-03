@@ -2,7 +2,7 @@
 <template>
   <div class="home">
     <div class="nav gray flex-horizon-center relative">
-      <span class="icon absolute" @click="window.location.back(-1)">
+      <span class="icon absolute" @click="webViewClose">
         <img src="@/assets/back-icon.png" class="fit flex-vertical-center" />
       </span>
       <span class="gray bold font-large">离线巡检</span>
@@ -21,7 +21,7 @@
           <template #title>
             <div class="font-small bold gray">{{ item.taskInfo.taskName }}</div>
             <div class="lightgray font-small">
-              {{ `计划时间: ${item.taskInfo.actualStartTime}` }}
+              {{ `计划时间: ${item.taskInfo.planStartTime}` }}
             </div>
           </template>
           <template #value>
@@ -39,39 +39,100 @@
                 <b class="rect blue"></b>
                 <span>{{ content.taskAreaDTO.targetName }}</span>
               </span>
-              <span class="blue font-tiny flex-horizon-right">
+              <span
+                class="blue font-tiny flex-horizon-right"
+                v-if="content.taskAreaDTO.clockInWay === 1"
+              >
                 <div
-                  v-if="!content.taskAreaDTO.checkinTime"
                   class="flex-horizon-right"
                   style="width: 80px"
                   @click="showCheckNFC(content, x, y)"
                 >
                   <img src="@/assets/NFC.png" class="nfc-icon" />
-                  <span style="margin-left: 4px">NFC打卡</span>
+                  <span style="margin-left: 4px">{{
+                    content.taskAreaDTO.checkinTime ? 'NFC已打卡' : 'NFC打卡'
+                  }}</span>
+                  <img src="@/assets/prev-icon.png" class="prev-icon" />
+                </div>
+              </span>
+              <span
+                class="blue font-tiny flex-horizon-right"
+                v-if="content.taskAreaDTO.clockInWay === 2"
+              >
+                <div
+                  class="flex-horizon-right"
+                  style="width: 100px"
+                  @click="showCheckMap(content, x, y)"
+                >
+                  <img src="@/assets/NFC.png" class="nfc-icon" />
+                  <span style="margin-left: 4px">{{
+                    content.taskAreaDTO.checkinTime ? '地图已打卡' : '地图打卡'
+                  }}</span>
                   <img src="@/assets/prev-icon.png" class="prev-icon" />
                 </div>
               </span>
             </div>
+
+            <!-- deviceMeasureDTOList有值的情况 -->
             <div
-              v-for="device in content.measureListDTO.deviceMeasureDTOList"
-              :key="device.deviceId"
+              v-if="
+                Array.isArray(content.measureListDTO.deviceMeasureDTOList) &&
+                content.measureListDTO.deviceMeasureDTOList.length > 0
+              "
             >
-              <span>{{ device.deviceName }}</span>
               <div
-                v-for="(detail, index) in device.measureDTOList"
-                :key="detail.id"
+                v-for="device in content.measureListDTO.deviceMeasureDTOList"
+                :key="device.deviceId"
               >
+                <span>{{ device.deviceName }}</span>
+                <div
+                  v-for="(detail, index) in device.measureDTOList"
+                  :key="detail.id"
+                >
+                  <type-input
+                    v-if="detail.measureResultType === 2"
+                    :taskId="item.taskInfo.taskId"
+                    :content="detail"
+                    v-model="device.measureDTOList[index]"
+                  ></type-input>
+                  <type-radio
+                    v-else
+                    :content="detail"
+                    v-model="device.measureDTOList[index]"
+                  ></type-radio>
+                </div>
+              </div>
+            </div>
+
+            <!-- areaMeasureDTOList有值的情况 -->
+            <div
+              v-if="
+                Array.isArray(content.measureListDTO.areaMeasureDTOList) &&
+                content.measureListDTO.areaMeasureDTOList.length > 0
+              "
+            >
+              <div
+                v-for="(device, index) in content.measureListDTO
+                  .areaMeasureDTOList"
+                :key="device.deviceId"
+              >
+                <span>{{ device.deviceName }}</span>
+                <!-- <div
+                  v-for="(detail, index) in device.measureDTOList"
+                  :key="detail.id"
+                > -->
                 <type-input
-                  v-if="detail.measureResultType === 2"
+                  v-if="device.measureResultType === 2"
                   :taskId="item.taskInfo.taskId"
-                  :content="detail"
-                  v-model="device.measureDTOList[index]"
+                  :content="device"
+                  v-model="content.measureListDTO.areaMeasureDTOList[index]"
                 ></type-input>
                 <type-radio
                   v-else
-                  :content="detail"
-                  v-model="device.measureDTOList[index]"
+                  :content="device"
+                  v-model="content.measureListDTO.areaMeasureDTOList[index]"
                 ></type-radio>
+                <!-- </div> -->
               </div>
             </div>
           </div>
@@ -133,14 +194,16 @@ import {
   postMultiple,
   updateSicInspectTaskResultExtra,
   updateOfflineData,
-  upDateCheckinNFCInfo
+  upDateCheckinNFCInfo,
 } from '@/http/api.js'
 import { cloneDeep } from 'lodash'
 import {
   getNetworkConnect,
   readFromFile,
-  saveToFile
+  saveToFile,
+  getLocationInfo,
 } from '@/utils/ic'
+import { getDayTimer } from '@/utils/filterStandars'
 
 export default {
   name: 'Home',
@@ -158,7 +221,7 @@ export default {
       inspectionUpdate: [], // 巡检详情组成的数组
       checkNFC: [], // 各区域是否NFC打卡
       currentNFCInfo: {}, // 当前打卡的NFC设备
-      requestSaveNFCParams: [],   // 所有NFC打卡信息
+      requestSaveNFCParams: [], // 所有NFC、地图打卡信息
       isCheckingNFC: false,
       nfcDone: false,
     }
@@ -172,13 +235,19 @@ export default {
   async mounted() {
     let token = this.$route.query.token
     let unified = this.$route.query.unified
-    console.log(window.location.href)
-    console.log("token:", token)
-    console.log("unified:", unified)
-    console.log(this.$route)
+    // console.log('token:', token)
+    // console.log('unified:', unified)
+    // console.log(this.$route)
     sessionStorage.setItem('token', token)
     sessionStorage.setItem('unified', unified)
 
+    // this.getOfflineData()
+
+    // 获取当前保存的数据
+    let localData = await readFromFile()
+    if(localData) {
+      this.collapseData = JSON.parse(localData)
+    }
     // 获取网络状态
     // let newStatus = await getNetworkConnect();
     // if(newStatus === "0") {
@@ -190,6 +259,11 @@ export default {
   methods: {
     // 上传数据
     async uploadData() {
+      let newStatus = await getNetworkConnect()
+      if (newStatus !== '0') {
+        // 没网
+        return this.$toast('请在有网的地方上传')
+      }
       this.beforeUploadImg = [] // 初始化beforeUploadImg
       this.afterUploadImg = [] // 初始化afterUploadImg
       this.inspectionUpdate = [] // 初始化inspectionUpdate
@@ -203,22 +277,26 @@ export default {
        * @params inspectValue: 0
        * @params taskId: 1245
        **/
+      // 上传之前保存一下数据到本地
+      await saveToFile(JSON.stringify(this.collapseData))
       // 扁平化修改后的数据
       this.collapseData.forEach((item) => {
         // 循环遍历，获取一个包含所有上传图片的数组，并关联taskId与measureId(id)
         this.flatCollapseData(item, item.taskInfo.taskId)
       })
-      
+
       // 更新NFC打卡信息
       const upDataNFCresutls = await Promise.all(
-        this.requestSaveNFCParams.map(item => {
+        this.requestSaveNFCParams.map((item) => {
           return upDateCheckinNFCInfo(item)
         })
       )
-      if(upDataNFCresutls.some(item => {
-        item.data.code !== "0"
-      })){
-        return this.$toast("NFC打卡数据保存失败")
+      if (
+        upDataNFCresutls.some((item) => {
+          item.data.code !== '0'
+        })
+      ) {
+        return this.$toast('打卡数据保存失败')
       }
 
       await this.pollingUploadData()
@@ -306,7 +384,7 @@ export default {
       }
       if (target.hasOwnProperty('id')) {
         this.inspectionUpdate.push({
-          collectTime: '2021-10-18 16:0:16', // 采集时间
+          collectTime: getDayTimer(new Date().getTime()), // 采集时间
           collectValue: target.collectValue ?? '', // 采集值
           inspectItemId: target.id ?? '', // 巡检id
           inspectRemark: target.remark ?? '', // 备注
@@ -315,12 +393,15 @@ export default {
           taskId: taskId, // 任务taskId
         })
       }
-      if (target.hasOwnProperty("nfcCode")) {
+      if (target.hasOwnProperty('nfcCode')) {
         this.requestSaveNFCParams.push({
           areaId: target.taskAreaDTO.areaId,
           checkinDeviceId: target.nfcCode,
+          clockInWay: target.taskAreaDTO.clockInWay,  // NFC打卡
           pathNodeId: target.taskAreaDTO.pathNodeId,
-          taskId
+          latitude: target.taskAreaDTO.checkinLatitude ?? "",
+          longitude: target.taskAreaDTO.checkinLongitude ?? "",
+          taskId,
         })
       }
       if (
@@ -348,7 +429,8 @@ export default {
         message: '正在下载数据...',
         forbidClick: true,
       })
-      // this.getOfflineData()
+      this.getOfflineData()
+      return
       // 判断当前网络状态
       let newStatus = await getNetworkConnect()
       if (newStatus === '0') {
@@ -377,9 +459,17 @@ export default {
     getOfflineData() {
       let date = new Date() //日期对象
       let now = ''
-      now = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate() + ' ' + '00:00:00' //读英文就行了
-      let today = Date.parse(new Date().toLocaleDateString());
-      let tomorrow = today + (3600000*24)
+      now =
+        date.getFullYear() +
+        '-' +
+        (date.getMonth() + 1) +
+        '-' +
+        date.getDate() +
+        ' ' +
+        '00:00:00' //读英文就行了
+      let today = Date.parse(new Date().toLocaleDateString())
+      //new Date().toLocaleString()
+      let tomorrow = today + 3600000 * 24
       const params = {
         inspectGroupId: '',
         inspectUserId: '',
@@ -387,19 +477,21 @@ export default {
         pageNum: 1,
         pageSize: 1000,
         planCodeOrName: '',
-        planInspectEndTime: this.formDateTime(today),
-        planInspectStartTime: this.formDateTime(tomorrow),
+        planInspectEndTime: this.formDateTime(tomorrow),
+        planInspectStartTime: this.formDateTime(today),
         taskCode: '',
         taskResult: '',
         taskState: 3,
-        taskStatus: 3,
+        taskStatusList: [3],
         userGroupIdList: [],
       }
 
       getOffLineData(params).then((res) => {
         if (res.data.code === '0') {
-          this.$toast("下载数据成功")
+          this.$toast('下载数据成功')
           this.collapseData = res.data.data.list
+          // 下载成功后自动保存
+          this.saveLocalData()
           // 获取各区域是否NFC打卡
           this.collapseData.forEach((item) => {
             if (
@@ -416,12 +508,22 @@ export default {
     },
 
     formDateTime(timesStamp) {
-      const times = new Date(timesStamp);
-      const formDateT = times.getFullYear() + '-' + (times.getMonth() + 1) + '-' + times.getDate() + ' ' + '00:00:00'
+      const times = new Date(timesStamp)
+      const formDateT =
+        times.getFullYear() +
+        '-' +
+        (times.getMonth() + 1) +
+        '-' +
+        times.getDate() +
+        ' ' +
+        '00:00:00'
       return formDateT
     },
 
     showCheckNFC(item, x, y) {
+      if (item.taskAreaDTO.checkinTime) {
+        return this.$toast('已经打过卡了')
+      }
       this.showNFC = true
       this.currentNFCInfo = {
         ...item,
@@ -436,6 +538,7 @@ export default {
 
     startNFC() {
       this.isCheckingNFC = true
+      let nfcCheckDate = getDayTimer(new Date().getTime()) // 打卡时间
       ic.run({
         action: 'device.openNFC',
         success: (res) => {
@@ -445,13 +548,61 @@ export default {
           this.collapseData[this.currentNFCInfo.x].offlineTaskAreaDTOList[
             this.currentNFCInfo.y
           ].nfcCode = res.id
-          console.log(this.collapseData)
+          // NFC打卡时间赋值
+          this.collapseData[this.currentNFCInfo.x].offlineTaskAreaDTOList[
+            this.currentNFCInfo.y
+          ].taskAreaDTO.checkinTime = nfcCheckDate
           ic.run({
             action: 'device.closeNFC',
           })
           this.showNFC = false
         },
       })
+    },
+
+    // 关闭webview
+    webViewClose() {
+      ic.run({
+        action: 'webview.back',
+      })
+    },
+
+    // 地图打卡
+    async showCheckMap(content, x, y) {
+      if(content.taskAreaDTO.checkinTime) return this.$toast('已经打过卡了');
+      // 1、判断当前网络状态
+      // 2、有网的情况下调用原生app端的接口获取经纬度
+      // 3、没网的情况下无法地图打卡
+      this.currentNFCInfo = {
+        ...content,
+        x,
+        y,
+      }
+      let newStatus = await getNetworkConnect()
+      if (newStatus === '0') {
+        // 有网
+        let locations = await getLocationInfo()
+        if (
+          locations.hasOwnProperty('longitude') &&
+          locations.hasOwnProperty('latitude')
+        ) {
+          console.log(locations)
+          this.currentNFCInfo['nfcCode'] = locations.id ?? ""
+          // 打卡成功
+          this.collapseData[this.currentNFCInfo.x].offlineTaskAreaDTOList[
+            this.currentNFCInfo.y
+          ].taskAreaDTO.checkinTime = getDayTimer(new Date().getTime());
+          this.collapseData[this.currentNFCInfo.x].offlineTaskAreaDTOList[
+            this.currentNFCInfo.y
+          ].taskAreaDTO.checkinLatitude = locations.latitude;
+          this.collapseData[this.currentNFCInfo.x].offlineTaskAreaDTOList[
+            this.currentNFCInfo.y
+          ].taskAreaDTO.checkinLongitude = locations.longitude;
+        }
+      } else {
+        // 没网
+        this.$toast('网络状态错误，无法打卡')
+      }
     },
   },
 }

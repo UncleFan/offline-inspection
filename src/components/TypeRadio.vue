@@ -15,6 +15,19 @@
             }}</span>
           </template>
         </van-popover>
+        <van-popover
+          v-model="showPopover"
+          theme="light"
+          trigger="click"
+          placement="top"
+          :actions="popContext"
+        >
+          <template #reference>
+            <span class="indicator" @click="showpopover"
+              >标准：{{ content.checkLogic }}</span
+            >
+          </template>
+        </van-popover>
       </p>
       <p>{{ content.measureRequirement }}</p>
       <p class="radio flex-horizon-center">
@@ -73,8 +86,16 @@ export default {
       showMeasureName: false,
       popContext: [{ text: "" }],
       radio: 0,
+      showPopover: false,
       fileList: [],
     };
+  },
+
+  mounted() {
+    console.log(this.content, "====");
+    // if(this.content.hasOwnProperty("fileList")) {
+    //   this.fileList = this.content.fileList
+    // }
   },
 
   methods: {
@@ -109,8 +130,7 @@ export default {
     box-sizing: border-box;
     border-radius: 8px;
     p {
-      height: 40px;
-      line-height: 40px;
+      line-height: 30px;
     }
     .radio {
       justify-content: flex-start;

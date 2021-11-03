@@ -8,7 +8,7 @@ export const getNetworkConnect = () => {
                 //见下文出参示例及说明 0已连接，1未连接
                 resolve(res)
             },
-            fail: (res)  => {
+            fail: (res) => {
                 reject(res)
             }
         })
@@ -21,11 +21,11 @@ export const readFromFile = () => {
         ic.run({
             action: 'system.readFromFile',
             params: {
-              appId: process.env.VUE_APP_ID, 
-              key:'localData',
+                appId: process.env.VUE_APP_ID,
+                key: 'localData',
             },
-            success: (res) =>{
-              resolve(res)
+            success: (res) => {
+                resolve(res)
             },
             fail: (res) => {
                 reject(res)
@@ -40,12 +40,12 @@ export const saveToFile = (localData) => {
         ic.run({
             action: 'system.saveToFile',
             params: {
-              appId: process.env.VUE_APP_ID,
-              text: localData,
-              key: 'localData',
+                appId: process.env.VUE_APP_ID,
+                text: localData,
+                key: 'localData',
             },
             success: (res) => {
-              resolve(res)
+                resolve(res)
             },
             fail: (res) => {
                 reject(res)
@@ -74,21 +74,21 @@ export const selectPhotos = () => {
 export const initBluetooth = () => {
     return new Promise((resolve, reject) => {
         ic.run({
-            action:"bt.initBluetooth",
-            success: (res) => { 
-                resolve(res)    
+            action: "bt.initBluetooth",
+            success: (res) => {
+                resolve(res)
             }
-        })  
+        })
     })
 }
 
 // 通过手机蓝牙向蓝牙设备写入指令
 export const writeBleCmd = () => {
-    return Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
         ic.run({
-            action:"bt.writeBleCmd",
-            params:{
-              "bleCMD": ""
+            action: "bt.writeBleCmd",
+            params: {
+                "bleCMD": ""
             },
             success: (res) => {
                 resolve(res)
@@ -99,7 +99,7 @@ export const writeBleCmd = () => {
 
 // 开启手机NFC通道读取数据
 export const openNFC = () => {
-    return Promise ((resolve, reject) => {
+    return new Promise((resolve, reject) => {
         ic.run({
             action: "device.openNFC",
             success: (res) => {
@@ -111,11 +111,29 @@ export const openNFC = () => {
 
 // 关闭NFC功能
 export const closeNFC = () => {
-    return Promise((resolve, reject) => {
+    return new Promise((resolve, reject) => {
         ic.run({
             action: "device.closeNFC",
             success: (res) => {
                 resolve(res)
+            }
+        })
+    })
+}
+
+// 获取位置信息
+export const getLocationInfo = () => {
+    return new Promise((resolve, reject) => {
+        ic.run({
+            action: "device.getLocation",
+            params: {
+                mapType: 0,
+            },
+            success: (res) => {
+                resolve(res)//见下文出参示例及说明
+            },
+            fail: (res) => {
+                reject("fail:")
             }
         })
     })

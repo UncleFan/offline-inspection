@@ -157,3 +157,47 @@ const flatCollapseData = (obj, objs, taskId = null) => {
   } 
 }
 
+
+// 时间处理
+export const getDayTimer = (data) => {
+  var date = new Date(data)
+  var y = date.getFullYear()
+  var m = date.getMonth() + 1
+  m = m < 10 ? ('0' + m) : m
+  var d = date.getDate()
+  d = d < 10 ? ('0' + d) : d
+  var currentdate = y + '-' + m + '-' + d;
+  var hh = date.getHours()
+  hh = hh < 10 ? ('0' + hh) : hh
+  var mm = date.getMinutes()
+  mm = mm < 10 ? ('0' + mm) : mm
+  var ss = date.getSeconds()
+  ss = ss < 10 ? ('0' + ss) : ss
+  var time = hh + ':' + mm + ':' + ss;
+  return currentdate + " " + time
+}
+
+// 处理合并两个数组对象
+/**
+ * @param offlineData离线储存的本地数据
+ * @param onlineData接口获取的当前巡检数据
+ * 1、新增的是巡检任务
+ * 2、新增的是巡检区域
+ * 3、新增的是巡检项
+ **/
+export const mergeCollapseData = (offlineData, onlineData) => {
+  const newData = [];
+  // 逐层比较合并
+  if(offlineData.length === onlineData.length) {
+    // 递归，判断每一层是否有新增
+  } else {
+    // 获取到新增的任务
+    // 添加到本地数据中
+    // 将获取到的数据过滤掉新增的巡检任务，得到一个新的数组filterData
+    // filterData与offlineData递归比较每一项是否有新增 => 是，添加进去； => 否，以本地的这个属性值为准
+
+    // 以offlineData为newData
+    newData = offlineData
+  }
+  return newData;
+}
