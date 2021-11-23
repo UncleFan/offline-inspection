@@ -1,14 +1,5 @@
 <template>
   <div class="content-box">
-    <p class="font-normal gray bold flex-horizon-between title">
-      <!-- <span>
-        <span class="rect"></span>
-        <span>BOG压缩机入口分液罐</span>
-      </span>
-      <span>
-        <span class="type-number">PIT03-0101</span>
-      </span> -->
-    </p>
     <div class="card font-small">
       <p class="flex-horizon-between font-small title">
         <van-popover
@@ -48,6 +39,7 @@
           <van-field
             v-model="content.measureValue"
             type="number"
+            :disabled="content.allowResultEditFlag === 0 ? true : false"
             placeholder="请输入巡检值"
             @input="checkStandars"
           />
@@ -61,12 +53,6 @@
           :taskId="taskId"
           @change="uploadImg"
         ></upload-plugin>
-        <!-- <van-uploader
-          v-model="fileList"
-          multiple
-          @click="uploadImg"
-        ></van-uploader> -->
-        <!-- <div @click="uploadImg">上传</div> -->
       </div>
       <div class="status" v-if="content.readMethod === 4">
         <!-- <van-button round v-if="content.readMethod === 2">
@@ -121,6 +107,7 @@ export default {
     if(this.content.hasOwnProperty("fileList")) {
       this.fileList = this.content.fileList
     }
+    this.checkStandars()
   },
 
   methods: {
@@ -140,6 +127,7 @@ export default {
       this.$emit('change', {
         ...this.content,
         fileList: this.fileList,
+        measureResult: this.flag? 1: 2
       })
     },
     // 初始化连接蓝牙

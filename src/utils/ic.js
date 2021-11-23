@@ -17,6 +17,7 @@ export const getNetworkConnect = () => {
 
 // 读取app缓存数据
 export const readFromFile = () => {
+    console.log("readFromFile start")
     return new Promise((resolve, reject) => {
         ic.run({
             action: 'system.readFromFile',
@@ -25,6 +26,8 @@ export const readFromFile = () => {
                 key: 'localData',
             },
             success: (res) => {
+                console.log("doing readFromFile")
+                // console.log(res)
                 resolve(res)
             },
             fail: (res) => {

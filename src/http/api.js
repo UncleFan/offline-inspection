@@ -17,7 +17,7 @@ export const postMultiple = (params) => {
 
 // 更新单个巡检任务附件
 export const updateSicInspectTaskResultExtra = (params) => {
-    return http.post("/sic/task/updateSicInspectTaskResultExtra", params)
+    return http.post("/sic/task/updateSicInspectItemResultExtra", params)
 }
 
 // 上传打卡记录

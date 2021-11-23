@@ -45,7 +45,7 @@
               >
                 <div
                   class="flex-horizon-right"
-                  style="width: 80px"
+                  style="width: 100px"
                   @click="showCheckNFC(content, x, y)"
                 >
                   <img src="@/assets/NFC.png" class="nfc-icon" />
@@ -64,7 +64,7 @@
                   style="width: 100px"
                   @click="showCheckMap(content, x, y)"
                 >
-                  <img src="@/assets/NFC.png" class="nfc-icon" />
+                  <!-- <img src="@/assets/NFC.png" class="nfc-icon" /> -->
                   <span style="margin-left: 4px">{{
                     content.taskAreaDTO.checkinTime ? '地图已打卡' : '地图打卡'
                   }}</span>
@@ -99,6 +99,7 @@
                     v-else
                     :content="detail"
                     v-model="device.measureDTOList[index]"
+                    :taskId="item.taskInfo.taskId"
                   ></type-radio>
                 </div>
               </div>
@@ -131,6 +132,7 @@
                   v-else
                   :content="device"
                   v-model="content.measureListDTO.areaMeasureDTOList[index]"
+                  :taskId="item.taskInfo.taskId"
                 ></type-radio>
                 <!-- </div> -->
               </div>
@@ -154,7 +156,7 @@
           size="large"
           color="#2475fb"
           id="save"
-          @click="saveLocalData"
+          @click="saveLocalData(true)"
           >保存</van-button
         >
       </div>
@@ -237,23 +239,15 @@ export default {
     let unified = this.$route.query.unified
     // console.log('token:', token)
     // console.log('unified:', unified)
-    // console.log(this.$route)
     sessionStorage.setItem('token', token)
     sessionStorage.setItem('unified', unified)
-
-    // this.getOfflineData()
-
     // 获取当前保存的数据
     let localData = await readFromFile()
     if(localData) {
       this.collapseData = JSON.parse(localData)
     }
-    // 获取网络状态
-    // let newStatus = await getNetworkConnect();
-    // if(newStatus === "0") {
-    // 有网
-    // await this.getOfflineData()
-    // }
+    if(!localData) return
+    this.collapseData = JSON.parse(localData.replace(/[\r\n\s+]/g, ''))
   },
 
   methods: {
@@ -339,6 +333,7 @@ export default {
           inspectOp: '',
           measureId: item.measureId,
           taskId: item.taskId,
+          pathNodeId: item.pathNodeId
         }
       })
       const promiseArr = requestArr.map((item) => {
@@ -352,21 +347,25 @@ export default {
       this.loading = true
       let results = []
       for (let limit = 0; limit < this.beforeUploadImg.length; limit++) {
-        await this.getUploadImg(this.beforeUploadImg[limit].file)
-        if (limit === this.beforeUploadImg.length - 1) {
-          this.loading = false
+        // 判断fileList数据为file
+        if(this.beforeUploadImg[limit].hasOwnProperty("file")) {
+          !(async function(_this) {
+            let uploadImgs = await _this.getUploadImg(_this.beforeUploadImg[limit].file)
+            _this.afterUploadImg.push(uploadImgs.data.data);
+            if (limit === _this.beforeUploadImg.length - 1) {
+              _this.loading = false
+            }
+          })(this)
         }
       }
     },
 
     getUploadImg(file) {
-      return postMultiple(file).then((res) => {
-        this.afterUploadImg.push(res.data.data)
-      })
+      return postMultiple(file)
     },
 
     // 扁平化数据
-    flatCollapseData(target, taskId = null) {
+    flatCollapseData(target, taskId = null, pathNodeName = null) {
       if (
         target.hasOwnProperty('id') &&
         target.hasOwnProperty('fileList') &&
@@ -383,14 +382,18 @@ export default {
         })
       }
       if (target.hasOwnProperty('id')) {
+        let createCollect = false;
+        target.collectTime && (target.measureResult || target.measureValue)? createCollect = false: createCollect = true;
         this.inspectionUpdate.push({
-          collectTime: getDayTimer(new Date().getTime()), // 采集时间
+          collectTime: createCollect ? getDayTimer(new Date().getTime()): target.collectTime, // 采集时间
           collectValue: target.collectValue ?? '', // 采集值
           inspectItemId: target.id ?? '', // 巡检id
           inspectRemark: target.remark ?? '', // 备注
           inspectResult: target.measureResult ?? '', // 1.正常或2.异常
           inspectValue: target.measureValue ?? '', // 巡检值
-          taskId: taskId, // 任务taskId
+          taskId, // 任务taskId
+          pathNodeName,
+          pathNodeId: target.pathNodeId
         })
       }
       if (target.hasOwnProperty('nfcCode')) {
@@ -410,48 +413,40 @@ export default {
       ) {
         taskId = target.taskInfo.taskId
         target.offlineTaskAreaDTOList.forEach((item) => {
-          this.flatCollapseData(item, taskId)
+          this.flatCollapseData(item, taskId, pathNodeName)
         })
       } else if (target.hasOwnProperty('measureListDTO')) {
+        pathNodeName = target.taskAreaDTO.pathNodeName
         target.measureListDTO.deviceMeasureDTOList.forEach((item) => {
-          this.flatCollapseData(item, taskId)
+          this.flatCollapseData(item, taskId, pathNodeName)
         })
-      } else if (target.hasOwnProperty('measureDTOList')) {
+        if (target.measureListDTO.hasOwnProperty('areaMeasureDTOList') && target.measureListDTO.areaMeasureDTOList.length > 0) {
+          target.measureListDTO.areaMeasureDTOList.forEach(item => {
+            this.flatCollapseData(item, taskId, pathNodeName)
+          })
+        }
+      } else if(target.hasOwnProperty('measureDTOList')) {
         target.measureDTOList.forEach((item) => {
-          this.flatCollapseData(item, taskId)
+          this.flatCollapseData(item, taskId, pathNodeName)
         })
       }
     },
 
     // 下载数据
-    async downloadOfflineData() {
+    downloadOfflineData() {
       this.$toast.loading({
         message: '正在下载数据...',
         forbidClick: true,
       })
       this.getOfflineData()
-      return
-      // 判断当前网络状态
-      let newStatus = await getNetworkConnect()
-      if (newStatus === '0') {
-        // 有网
-        this.getOfflineData()
-      } else {
-        // 没有网络
-        let localData = await readFromFile()
-        if (localData) {
-          this.$toast('下载完成')
-          this.collapseData = JSON.parse(localData)
-        } else {
-          this.$toast('请在有网络的地方下载数据')
-        }
-      }
     },
 
-    saveLocalData() {
-      const localData = JSON.stringify(this.collapseData)
+    saveLocalData(flag) {
+      // flag为true为手动保存，否则为无感知保存
+      let localData = JSON.stringify(this.collapseData)
+      localData = localData.replace(/[\r\n\s+]/g, '')
       saveToFile(localData).then((res) => {
-        this.$toast('保存成功！')
+        flag? this.$toast('保存成功！'): ""
       })
     },
 
@@ -484,6 +479,7 @@ export default {
         taskState: 3,
         taskStatusList: [3],
         userGroupIdList: [],
+        pathNodeName: '1'
       }
 
       getOffLineData(params).then((res) => {
@@ -563,46 +559,13 @@ export default {
     // 关闭webview
     webViewClose() {
       ic.run({
-        action: 'webview.back',
+        action: 'webview.close',
       })
     },
 
     // 地图打卡
-    async showCheckMap(content, x, y) {
-      if(content.taskAreaDTO.checkinTime) return this.$toast('已经打过卡了');
-      // 1、判断当前网络状态
-      // 2、有网的情况下调用原生app端的接口获取经纬度
-      // 3、没网的情况下无法地图打卡
-      this.currentNFCInfo = {
-        ...content,
-        x,
-        y,
-      }
-      let newStatus = await getNetworkConnect()
-      if (newStatus === '0') {
-        // 有网
-        let locations = await getLocationInfo()
-        if (
-          locations.hasOwnProperty('longitude') &&
-          locations.hasOwnProperty('latitude')
-        ) {
-          console.log(locations)
-          this.currentNFCInfo['nfcCode'] = locations.id ?? ""
-          // 打卡成功
-          this.collapseData[this.currentNFCInfo.x].offlineTaskAreaDTOList[
-            this.currentNFCInfo.y
-          ].taskAreaDTO.checkinTime = getDayTimer(new Date().getTime());
-          this.collapseData[this.currentNFCInfo.x].offlineTaskAreaDTOList[
-            this.currentNFCInfo.y
-          ].taskAreaDTO.checkinLatitude = locations.latitude;
-          this.collapseData[this.currentNFCInfo.x].offlineTaskAreaDTOList[
-            this.currentNFCInfo.y
-          ].taskAreaDTO.checkinLongitude = locations.longitude;
-        }
-      } else {
-        // 没网
-        this.$toast('网络状态错误，无法打卡')
-      }
+    showCheckMap(content, x, y) {
+      return this.$toast('离线巡检不支持地图打卡')
     },
   },
 }
@@ -638,9 +601,11 @@ export default {
     .content-wrap {
       width: 100%;
       min-height: calc(100vh - 44px - 73px);
+      margin-bottom: 10px;
       .content-title {
         display: flex;
         line-height: 20px;
+        align-items: center;
         > span {
           flex: 1;
         }

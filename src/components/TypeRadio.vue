@@ -15,26 +15,13 @@
             }}</span>
           </template>
         </van-popover>
-        <van-popover
-          v-model="showPopover"
-          theme="light"
-          trigger="click"
-          placement="top"
-          :actions="popContext"
-        >
-          <template #reference>
-            <span class="indicator" @click="showpopover"
-              >标准：{{ content.checkLogic }}</span
-            >
-          </template>
-        </van-popover>
       </p>
       <p>{{ content.measureRequirement }}</p>
       <p class="radio flex-horizon-center">
         <span>是否正常：</span>
         <van-radio-group v-model="content.measureResult" direction="horizontal">
-          <van-radio name="1" shape="round">正常</van-radio>
-          <van-radio name="2" shape="round">异常</van-radio>
+          <van-radio :name="1" shape="round">正常</van-radio>
+          <van-radio :name="2" shape="round">异常</van-radio>
         </van-radio-group>
       </p>
       <div>
@@ -47,12 +34,15 @@
             ></van-field>
           </span>
         </p>
-        <van-uploader
-          v-if="content.cameraFlag === 1"
-          v-model="fileList"
-          :after-read="uploadImg"
-          multiple
-        ></van-uploader>
+        <div v-if="content.cameraFlag === 1">
+          <upload-plugin
+            v-model="fileList"
+            :file-list="fileList"
+            :id="content.id"
+            :taskId="taskId"
+            @change="uploadImg"
+          ></upload-plugin>
+        </div>
       </div>
       <div class="status">
         <!-- <van-button round v-if="content.readMethod === 2">
@@ -68,6 +58,8 @@
 </template>
 
 <script>
+/* eslint-disable */
+import UploadPlugin from './UploadPlugin'
 export default {
   model: {
     prop: "content",
@@ -80,6 +72,10 @@ export default {
         return {};
       },
     },
+    taskId: {
+      type: Number,
+      default: 0
+    }
   },
   data() {
     return {
@@ -87,15 +83,17 @@ export default {
       popContext: [{ text: "" }],
       radio: 0,
       showPopover: false,
-      fileList: [],
+      fileList: []
     };
   },
 
+  components: {
+    UploadPlugin
+  },
+
   mounted() {
-    console.log(this.content, "====");
-    // if(this.content.hasOwnProperty("fileList")) {
-    //   this.fileList = this.content.fileList
-    // }
+    // console.log(this.content)
+    this.fileList = this.content.fileList
   },
 
   methods: {

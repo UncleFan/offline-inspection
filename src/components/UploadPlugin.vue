@@ -4,9 +4,16 @@
     <div class="box flex-horizon-left">
       <div class="preview" v-for="(item, index) in fileList" :key="index">
         <img
+          v-if="!item.url"
           :src="item.content"
           class="preview-img"
-          @click="previewImg(item.content)"
+          @click="previewImg((item.content))"
+        />
+        <img
+          v-else
+          :src="item.url"
+          class="preview-img"
+          @click="previewImg((item.url))"
         />
         <van-icon name="clear" class="delete" @click.stop="deleteImg(index)" />
       </div>
@@ -45,7 +52,7 @@ export default {
     }
   },
   mounted() {
-      console.log(this.fileList)
+    console.log(this.fileList)
   },
   data() {
     return {
