@@ -44,7 +44,7 @@
           ></upload-plugin>
         </div>
       </div>
-      <div class="status">
+      <div class="status"  v-if="content.readMethod === 4">
         <!-- <van-button round v-if="content.readMethod === 2">
           拍照读数
         </van-button> -->

@@ -293,13 +293,17 @@ export default {
         return this.$toast('打卡数据保存失败')
       }
 
-      await this.pollingUploadData()
+      // 获取上传后的图片信息
+      const urls = await Promise.all(this.pollingUploadData())
+      this.afterUploadImg = urls.map(item => {
+        return item.data.data.url
+      })
 
       // 合并beforeUploadImg、afterUploadImg
       const sicInspections = this.beforeUploadImg.map((item, i) => {
         return {
           ...item,
-          ...this.afterUploadImg[i],
+          url: this.afterUploadImg[i]
         }
       })
 
@@ -321,6 +325,7 @@ export default {
     // 更新巡检结果
     updateSicInspectTaskResultExtra(arr) {
       const requestArr = arr.map((item) => {
+        console.log(item)
         return {
           inspectExtras: [
             {
@@ -330,7 +335,7 @@ export default {
               url: item.url,
             },
           ],
-          inspectOp: '',
+          inspectOp: 'add',
           measureId: item.measureId,
           taskId: item.taskId,
           pathNodeId: item.pathNodeId
@@ -343,25 +348,15 @@ export default {
     },
 
     // 异步轮询上传
-    async pollingUploadData() {
+    pollingUploadData() {
       this.loading = true
-      let results = []
-      for (let limit = 0; limit < this.beforeUploadImg.length; limit++) {
-        // 判断fileList数据为file
-        if(this.beforeUploadImg[limit].hasOwnProperty("file")) {
-          !(async function(_this) {
-            let uploadImgs = await _this.getUploadImg(_this.beforeUploadImg[limit].file)
-            _this.afterUploadImg.push(uploadImgs.data.data);
-            if (limit === _this.beforeUploadImg.length - 1) {
-              _this.loading = false
-            }
-          })(this)
-        }
-      }
-    },
-
-    getUploadImg(file) {
-      return postMultiple(file)
+      const uploadImgs = this.beforeUploadImg.filter((item, index) => {
+        return item.hasOwnProperty("file")
+      })
+      const uploadImgsRequest = uploadImgs.map(item => {
+        return postMultiple(item.file)
+      })
+      return uploadImgsRequest
     },
 
     // 扁平化数据
@@ -600,7 +595,7 @@ export default {
     overflow-y: scroll;
     .content-wrap {
       width: 100%;
-      min-height: calc(100vh - 44px - 73px);
+      // min-height: calc(100vh - 44px - 73px);
       margin-bottom: 10px;
       .content-title {
         display: flex;
