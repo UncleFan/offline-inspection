@@ -1,4 +1,5 @@
 /* eslint-disable */
+import { Base64 } from 'js-base64'
 // 获取网络链接状态
 export const getNetworkConnect = () => {
     return new Promise((resolve, reject) => {
@@ -27,7 +28,9 @@ export const readFromFile = () => {
             },
             success: (res) => {
                 console.log("doing readFromFile")
-                // console.log(res)
+                if(res) {
+                    res = JSON.parse(Base64.decode(res))
+                }
                 resolve(res)
             },
             fail: (res) => {
@@ -39,6 +42,8 @@ export const readFromFile = () => {
 
 // 保存数据到app本地
 export const saveToFile = (localData) => {
+    // base64加密后转存
+    localData = Base64.encode(JSON.stringify(localData))
     return new Promise((resolve, reject) => {
         ic.run({
             action: 'system.saveToFile',

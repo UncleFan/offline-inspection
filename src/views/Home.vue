@@ -229,12 +229,17 @@ export default {
     }
   },
 
+  computed: {
+    i: vm => console.log('vm: ============================', vm)
+  },
+
   components: {
     TypeInput,
     TypeRadio,
   },
 
   async mounted() {
+    console.log(this.i)
     let token = this.$route.query.token
     let unified = this.$route.query.unified
     // console.log('token:', token)
@@ -244,10 +249,8 @@ export default {
     // 获取当前保存的数据
     let localData = await readFromFile()
     if(localData) {
-      this.collapseData = JSON.parse(localData)
+      this.collapseData = localData
     }
-    if(!localData) return
-    this.collapseData = JSON.parse(localData.replace(/[\r\n\s+]/g, ''))
   },
 
   methods: {
@@ -272,7 +275,7 @@ export default {
        * @params taskId: 1245
        **/
       // 上传之前保存一下数据到本地
-      await saveToFile(JSON.stringify(this.collapseData))
+      await saveToFile(this.collapseData)
       // 扁平化修改后的数据
       this.collapseData.forEach((item) => {
         // 循环遍历，获取一个包含所有上传图片的数组，并关联taskId与measureId(id)
@@ -438,8 +441,8 @@ export default {
 
     saveLocalData(flag) {
       // flag为true为手动保存，否则为无感知保存
-      let localData = JSON.stringify(this.collapseData)
-      localData = localData.replace(/[\r\n\s+]/g, '')
+      let localData = this.collapseData
+      // localData = localData.replace(/[\r\n\s+]/g, '')
       saveToFile(localData).then((res) => {
         flag? this.$toast('保存成功！'): ""
       })
